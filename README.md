@@ -76,11 +76,54 @@ Un usuario **no autorizado** que le escriba al bot es ignorado (queda en `logs/a
 
 | Comando | Qué hace |
 |---|---|
+| `/mode` | Muestra/cambia el modo: `/mode claude_code` o `/mode pc_tools` |
 | `/ping` | Prueba de vida |
 | `/stop` | **Kill switch**: modo solo-lectura (no ejecuta acciones) |
 | `/resume` | Reanuda la ejecución |
-| `/reset` | Borra el historial de la conversación |
+| `/reset` | Borra el estado de la conversación (del modo actual) |
 | `/help` | Ayuda |
+
+---
+
+## 4b. Modos: elegí quién ejecuta
+
+Hay **dos cerebros** y podés cambiar en caliente con `/mode` (o fijar el default con
+`ASSISTANT_MODE` en `.env`):
+
+| Modo | Qué hace | Necesita `ANTHROPIC_API_KEY` |
+|---|---|---|
+| **`claude_code`** (recomendado) | Jarvis maneja **tu Claude Code** sobre tu proyecto: le pasás la orden, él la ejecuta y te cuenta qué respondió y qué cambió | No (usa el login de Claude Code) |
+| **`pc_tools`** | Jarvis controla la PC directo por la API (abrir apps, tipear, atajos, etc.) | Sí |
+
+**Configurar el modo `claude_code`** (en `.env`):
+```
+ASSISTANT_MODE=claude_code
+CLAUDE_CODE_CMD=claude
+CLAUDE_CODE_PROJECT_DIR=C:\Proyectos\mi-proyecto   # ← el proyecto que querés controlar
+CLAUDE_CODE_CONFIRM=true                            # propone y espera "sí, confirmo"
+```
+
+**Flujo de confirmación (estilo Claude):** con `CLAUDE_CODE_CONFIRM=true`, cada pedido
+primero **propone un plan sin tocar nada** (modo `plan` de Claude Code). Vos leés el plan
+en el celu y, si te gusta, respondés **`sí, confirmo`** y recién ahí lo aplica. Poné
+`CLAUDE_CODE_CONFIRM=false` si querés que ejecute directo, sin preguntar.
+
+```
+  vos: "agregá login con Google"
+  Jarvis: (plan) "voy a tocar auth.py y agregar un botón..."   ← NO cambió nada aún
+  vos: "sí, confirmo"
+  Jarvis: "✅ Aplicado. Modifiqué auth.py y ...  💰 ~US$0.03"
+```
+
+**Requisitos del modo `claude_code`:** tener Claude Code instalado y logueado en la PC
+(probá `claude --version`). Verificado: el driver usa `claude -p --output-format json
+--permission-mode plan|bypassPermissions --resume <id>`, todos flags reales del CLI.
+
+**Smoke test rápido** (confirma que el mecanismo anda en tu PC):
+```powershell
+echo "responde solo: ok" | claude -p --output-format json --permission-mode plan
+```
+Debe imprimir un JSON con un campo `"result": "ok"`.
 
 ---
 

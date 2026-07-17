@@ -3,13 +3,13 @@ import threading
 from flask import Flask, Response, request, send_file
 
 import config
-from core import orchestrator, security, stt, tts
+from core import engines, security, stt, tts
 
 app = Flask(__name__)
 
 # chat_id interno para el modo llamada (comparte capa de seguridad y confirmaciones)
 _CALL_CHAT = -999
-_history = []
+_state = None
 
 PAGE = """<!doctype html>
 <html lang="es">
@@ -72,7 +72,7 @@ def index():
 
 @app.route("/talk", methods=["POST"])
 def talk():
-    global _history
+    global _state
     f = request.files.get("audio")
     if not f:
         return {"error": "sin audio"}, 400
@@ -88,9 +88,7 @@ def talk():
     else:
         security.clear_confirmation(_CALL_CHAT)
 
-    reply, _history = orchestrator.run_turn(
-        text, _history, config.ORCHESTRATOR_MODEL, _CALL_CHAT
-    )
+    reply, _state = engines.run(text, _state, _CALL_CHAT)
     out = config.RUNTIME_DIR / "call_out.wav"
     tts.synth_to_file(reply or "Listo.", str(out))
     return send_file(str(out), mimetype="audio/wav")

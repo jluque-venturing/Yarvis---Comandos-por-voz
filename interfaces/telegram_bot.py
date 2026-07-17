@@ -9,10 +9,10 @@ from telegram.ext import (
 )
 
 import config
-from core import orchestrator, security, stt, tts
+from core import engines, security, stt, tts
 
-# Historial de conversacion por chat (para pedidos encadenados)
-HISTORIES = {}
+# Estado de conversacion por (chat_id, modo). Cada modo mantiene su propio estado.
+STATES = {}
 
 
 def _apply_confirmation(chat_id, text):
@@ -26,11 +26,10 @@ async def _process(update, text):
     chat_id = update.effective_chat.id
     _apply_confirmation(chat_id, text)
     security.log_incoming(chat_id, text)
-    hist = HISTORIES.get(chat_id, [])
-    reply, hist = await asyncio.to_thread(
-        orchestrator.run_turn, text, hist, config.ORCHESTRATOR_MODEL, chat_id
-    )
-    HISTORIES[chat_id] = hist
+    key = (chat_id, engines.get_active())
+    state = STATES.get(key)
+    reply, state = await asyncio.to_thread(engines.run, text, state, chat_id)
+    STATES[key] = state
     return reply
 
 
@@ -115,11 +114,27 @@ async def cmd_help(update, context: ContextTypes.DEFAULT_TYPE):
     if not security.is_allowed(update.effective_user.id):
         return
     await update.message.reply_text(
+        "/mode muestra o cambia el modo (claude_code | pc_tools)\n"
         "/ping prueba de vida\n"
-        "/stop pausa la ejecucion de acciones (solo-lectura)\n"
+        "/stop pausa la ejecucion de acciones (solo-lectura, modo pc_tools)\n"
         "/resume reanuda\n"
-        "/reset borra el historial de la conversacion"
+        "/reset borra el estado de la conversacion del modo actual"
     )
+
+
+async def cmd_mode(update, context: ContextTypes.DEFAULT_TYPE):
+    if not security.is_allowed(update.effective_user.id):
+        return
+    arg = context.args[0].strip() if context.args else ""
+    if arg and engines.set_active(arg):
+        await update.message.reply_text(f"Modo activo: {arg}")
+    else:
+        await update.message.reply_text(
+            f"Modo actual: {engines.get_active()}\n"
+            "Opciones:\n"
+            "/mode claude_code  (Jarvis maneja tu Claude Code)\n"
+            "/mode pc_tools     (Jarvis controla la PC via API)"
+        )
 
 
 async def cmd_ping(update, context: ContextTypes.DEFAULT_TYPE):
@@ -145,14 +160,15 @@ async def cmd_resume(update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_reset(update, context: ContextTypes.DEFAULT_TYPE):
     if not security.is_allowed(update.effective_user.id):
         return
-    HISTORIES.pop(update.effective_chat.id, None)
-    await update.message.reply_text("🧹 Historial borrado.")
+    STATES.pop((update.effective_chat.id, engines.get_active()), None)
+    await update.message.reply_text("🧹 Estado borrado (modo actual).")
 
 
 def run():
     app = Application.builder().token(config.TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("mode", cmd_mode))
     app.add_handler(CommandHandler("ping", cmd_ping))
     app.add_handler(CommandHandler("stop", cmd_stop))
     app.add_handler(CommandHandler("resume", cmd_resume))

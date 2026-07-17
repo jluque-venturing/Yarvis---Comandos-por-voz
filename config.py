@@ -44,18 +44,36 @@ ENABLE_VOICE_CALL = os.getenv("ENABLE_VOICE_CALL", "false").strip().lower() == "
 VOICE_CALL_HOST = os.getenv("VOICE_CALL_HOST", "127.0.0.1").strip()
 VOICE_CALL_PORT = int(os.getenv("VOICE_CALL_PORT", "8760"))
 
+# --- Modo del asistente ---
+# claude_code = Jarvis maneja tu Claude Code (recomendado)
+# pc_tools    = Jarvis controla la PC directo por la API (modo original)
+ASSISTANT_MODE = os.getenv("ASSISTANT_MODE", "claude_code").strip()
+
+# --- Modo claude_code ---
+CLAUDE_CODE_CMD = os.getenv("CLAUDE_CODE_CMD", "claude").strip()
+# Carpeta del proyecto sobre el que Jarvis va a trabajar. Cambiala por la tuya.
+CLAUDE_CODE_PROJECT_DIR = os.getenv("CLAUDE_CODE_PROJECT_DIR", str(BASE_DIR)).strip()
+CLAUDE_CODE_CONFIRM = os.getenv("CLAUDE_CODE_CONFIRM", "true").strip().lower() == "true"
+CLAUDE_CODE_TIMEOUT = int(os.getenv("CLAUDE_CODE_TIMEOUT", "300"))
+
 
 def validate():
     faltantes = []
-    if not ANTHROPIC_API_KEY:
-        faltantes.append("ANTHROPIC_API_KEY")
     if not TELEGRAM_BOT_TOKEN:
         faltantes.append("TELEGRAM_BOT_TOKEN")
     if not TELEGRAM_ALLOWED_USER_IDS:
         faltantes.append("TELEGRAM_ALLOWED_USER_IDS")
+    # ANTHROPIC_API_KEY solo es obligatoria para el modo pc_tools
+    if ASSISTANT_MODE == "pc_tools" and not ANTHROPIC_API_KEY:
+        faltantes.append("ANTHROPIC_API_KEY (requerida en modo pc_tools)")
     if faltantes:
         raise SystemExit(
             "Faltan variables en .env: "
             + ", ".join(faltantes)
             + ".\nCopia .env.example a .env y completalas antes de arrancar."
+        )
+    if ASSISTANT_MODE == "claude_code" and not ANTHROPIC_API_KEY:
+        print(
+            "Aviso: sin ANTHROPIC_API_KEY el modo 'pc_tools' no funcionara "
+            "(el modo 'claude_code' usa la sesion de Claude Code, no necesita key)."
         )

@@ -9,7 +9,15 @@ from PIL import Image
 
 import config
 
-client = anthropic.Anthropic()
+_client = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic()
+    return _client
+
 
 # Verificar en la doc oficial la version de tool y el header beta vigentes al construir.
 BETA_HEADER = "computer-use-2025-11-24"
@@ -130,7 +138,7 @@ def run_computer_task(task, model=None):
     messages = [{"role": "user", "content": task}]
 
     for _ in range(MAX_LOOPS):
-        resp = client.beta.messages.create(
+        resp = _get_client().beta.messages.create(
             model=model,
             max_tokens=2048,
             tools=tools_cu,

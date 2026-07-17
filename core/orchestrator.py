@@ -3,7 +3,14 @@ import anthropic
 import config
 from core import security, tools
 
-client = anthropic.Anthropic()
+_client = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic()
+    return _client
 
 SYSTEM_PROMPT = """Sos Jarvis, un asistente que controla la PC Windows del usuario en tiempo real mediante herramientas.
 Reglas:
@@ -23,7 +30,7 @@ def run_turn(user_text, history, model=None, chat_id=0):
     history.append({"role": "user", "content": user_text})
 
     for _ in range(MAX_LOOPS):
-        resp = client.messages.create(
+        resp = _get_client().messages.create(
             model=model,
             max_tokens=config.ORCHESTRATOR_MAX_TOKENS,
             system=SYSTEM_PROMPT,
@@ -55,3 +62,8 @@ def run_turn(user_text, history, model=None, chat_id=0):
         history.append({"role": "user", "content": tool_results})
 
     return "Alcance el limite de pasos sin terminar la tarea.", history
+
+
+def run(user_text, state, chat_id):
+    """Interfaz comun para el selector de modos (core/engines.py)."""
+    return run_turn(user_text, state or [], config.ORCHESTRATOR_MODEL, chat_id)

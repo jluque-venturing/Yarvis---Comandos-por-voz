@@ -34,6 +34,13 @@ Celular (Telegram)  ->  interfaces/telegram_bot.py
 6. Kill switch: /stop (solo-lectura) y /resume.
 7. Fase 3 (computer use): asumir prompt injection; sin credenciales sensibles sin supervision.
 
-## Modelo
+## Modos (core/engines.py, selector con /mode)
+- `claude_code` (default): Jarvis maneja tu Claude Code sobre CLAUDE_CODE_PROJECT_DIR
+  (core/claude_code_driver.py). Flujo propone->confirma->aplica con CLAUDE_CODE_CONFIRM.
+  No necesita ANTHROPIC_API_KEY (usa el login de Claude Code).
+- `pc_tools`: orquestador API + herramientas de PC (core/orchestrator.py). Necesita la key.
+- Cada engine expone run(user_text, state, chat_id) -> (reply, new_state).
+
+## Modelo (solo modo pc_tools)
 - Orquestador por defecto: claude-sonnet-5 (configurable en .env).
 - Escalable a claude-opus-4-8 cambiando ORCHESTRATOR_MODEL.
